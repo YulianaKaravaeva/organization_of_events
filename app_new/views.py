@@ -224,3 +224,29 @@ def team_detail(id):
   team = Team.query.get_or_404(id)
   list_user = User.query.filter_by(team_id=id).all()
   return render_template("team_detail.html", team=team, list_user=list_user)
+
+
+# Проверка почты
+@app.route("/confirm/<token>")
+@login_required
+def confirm_email(token):
+
+  if current_user.is_confirmed:
+    flash("Account already confirmed.", "success")
+    return redirect("/events")
+
+  email = confirm_token(token)
+  user = User.query.filter_by(email=current_user.email).first_or_404()
+
+  if user.email == email:
+
+    user.is_confirmed = True
+    user.confirmed_on = datetime.now()
+    db.session.add(user)
+    db.session.commit()
+    flash("Подтверждение прошло успешно!", "success")
+
+  else:
+    flash("Ссылка недействительна или срок действия ее истек", "danger")
+
+  return redirect("/events")

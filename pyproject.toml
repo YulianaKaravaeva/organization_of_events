@@ -13,6 +13,8 @@ wtforms = "^3.1.1"
 werkzeug = "^3.0.1"
 flask-login = "^0.6.3"
 flask-admin = "^1.6.1"
+itsdangerous = "^2.1.2"
+flask-mail = "^0.9.1"
 
 [tool.pyright]
 # https://github.com/microsoft/pyright/blob/main/docs/configuration.md

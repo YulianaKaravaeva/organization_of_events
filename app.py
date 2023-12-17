@@ -1,26 +1,43 @@
-from flask import Flask, flash, redirect, render_template, request
+import os
+from datetime import datetime
+from functools import wraps 
+
+from flask import Flask, flash, redirect, render_template, request, url_for
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 from flask_login import LoginManager, UserMixin, current_user, login_user, logout_user
+from flask_login.utils import login_required
+from flask_mail import Mail, Message
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
+from itsdangerous import URLSafeTimedSerializer
 from werkzeug.security import check_password_hash, generate_password_hash
 from wtforms import BooleanField, PasswordField, StringField, SubmitField
 from wtforms.fields import DateField
 from wtforms.validators import DataRequired, Email, EqualTo, ValidationError
-from itsdangerous import URLSafeTimedSerializer
 
 app = Flask(__name__)
 
-login_manager = LoginManager(app)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///org_events.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///new_org_events.db'
+
 app.config['SECRET_KEY'] = '#$%^&*'
 app.config['SECURITY_PASSWORD_SALT'] = "cefcefe"
 
-db = SQLAlchemy(app)
 
+app.config['SECRET_KEY'] = 'secret'
+app.config["MAIL_SERVER"] = "smtp.googlemail.com"
+app.config["MAIL_PORT"] = 587
+app.config["MAIL_USE_TLS"] = True
+app.config["MAIL_USERNAME"] = "organization.events.email@gmail.com"
+app.config["MAIL_PASSWORD"] = "dojs zrxc cxko xtrk"
+app.config['MAIL_DEFAULT_SENDER'] = "organization.events.email@gmail.com"
+
+
+db = SQLAlchemy(app)
 admin = Admin(app)
+login_manager = LoginManager(app)
+mail = Mail(app)
 
 
 # Генерация токена для проверки почты
@@ -44,6 +61,8 @@ def confirm_token(token, expiration=3600):
 
 
 # Проверка почты
+@app.route("/confirm/<token>")
+@login_required
 def confirm_email(token):
 
   if current_user.is_confirmed:
@@ -62,9 +81,20 @@ def confirm_email(token):
     flash("Подтверждение прошло успешно!", "success")
     
   else:
-    flash("Ссылка для подтверждения недействительна или срок действия ее истек", "danger")
+    flash("Ссылка недействительна или срок действия ее истек", "danger")
     
   return redirect("/events")
+
+
+# Подготовка письма с подтверждением к отправке
+def send_email(to, subject, template):
+  msg = Message(
+      subject,
+      recipients=[to],
+      html=template,
+      sender=app.config["MAIL_DEFAULT_SENDER"],
+  )
+  mail.send(msg)
 
 
 #Таблица отношения многие-ко-многим для мероприятий и коллективов
@@ -112,10 +142,10 @@ class User(UserMixin, db.Model):
   user_name = db.Column(db.String(80), unique=True, nullable=False)
   password = db.Column(db.String(80), nullable=False)
   email = db.Column(db.String(120), unique=True, nullable=False)
-  telephone = db.Column(db.String(120), unique=True)
+  telephone = db.Column(db.String(120))
 
-  # is_confirmed = db.Column(db.Boolean, nullable=False, default=False)
-  # confirmed_on = db.Column(db.DateTime, nullable=True)
+  is_confirmed = db.Column(db.Boolean, nullable=False, default=False)
+  confirmed_on = db.Column(db.DateTime, nullable=True)
 
   def __repr__(self):
     return '<User %r>' % self.user_name
@@ -169,9 +199,11 @@ class UserRegistrationForm(FlaskForm):
   submit = SubmitField('Зарегистрироваться')
 
   def validate_email(self, email):
-      user = User.query.filter_by(email=email.data).first()
-      if user is not None:
-          raise ValidationError('Пользователь с такой почтой уже существует')
+    user = User.query.filter_by(email=email.data).first()
+    
+    if user is not None:
+      raise ValidationError('Пользователь с такой почтой уже существует')
+
 
 
 # Форма для регистрации участника
@@ -198,6 +230,7 @@ def load_user(user_id):
 
 
 # Страница для авторизации
+@app.route('/', methods=['GET', 'POST'])
 @app.route('/login', methods=['GET', 'POST'])
 def login():
 
@@ -213,12 +246,12 @@ def login():
     user_team = UserTeam.query.filter_by(email=form.email.data).first()
     
 
-    if not user is None and check_password_hash(user.password, form.password.data):
+    if not(user is None) and check_password_hash(user.password, form.password.data):
 
       login_user(user, remember=form.remember_me.data)
       return redirect('/events')
 
-    elif not user_team is None and check_password_hash(user_team.password, form.password.data):
+    elif not(user_team is None) and check_password_hash(user_team.password, form.password.data):
 
       login_user(user_team, remember=form.remember_me.data)
       return redirect('/events')
@@ -261,12 +294,67 @@ def register_user():
 
       token = generate_token(email)
       
+      confirm_url = url_for("confirm_email", token=token, _external=True)
+      html = render_template("email.html", confirm_url=confirm_url)
+      subject = "Пожалуйста, подтвердите вашу электронную почту"
+      send_email(user.email, subject, html)
+
+      login_user(user)
+
+      flash("Письмо с подтверждением было отправлено по электронной почте", "success")
+
       return redirect('/login')
 
-    except:
-      return 'При добавлении пользователя произошла ошибка'
+    except Exception as e:
+      return 'При добавлении пользователя произошла ошибка' + str(e)
       
   return render_template('registration_user.html', form=form)
+
+
+# Функция для просмотра подтверждения электронной почты
+@app.route("/inactive")
+def inactive():
+  
+  if current_user.is_confirmed:
+      return redirect('/events')
+    
+  return render_template("/inactive.html")
+
+
+# Функция для подтверждения электронной почты
+@app.route("/resend")
+def resend():
+  
+  if current_user.is_confirmed:
+    
+      flash("Ваш аккаунт уже подтвержден", "success")
+      return redirect("/events")
+    
+  token = generate_token(current_user.email)
+  confirm_url = url_for("confirm_email", token=token, _external=True)
+  html = render_template("email.html", confirm_url=confirm_url)
+  subject = "Пожалуйста подтвердите Вашу электронную почту"
+  send_email(current_user.email, subject, html)
+  
+  flash("Было отправлено новое электронное письмо с подтверждением", "success")
+  
+  return redirect("/inactive")
+
+
+#Декоратор маршрутов (доступ только подтвержденным пользователям)
+def check_is_confirmed(func):
+  @wraps(func)
+  def decorated_function(*args, **kwargs):
+    
+    
+      if current_user.is_confirmed is False:
+        
+          flash("Пожалуйста подтвердите Вау электроннную почту!", "warning")
+          return redirect('/inactive')
+        
+      return func(*args, **kwargs)
+  
+  return decorated_function
 
 
 # Страница для регистрации участника
@@ -315,8 +403,8 @@ def register_team():
 
 
 # Главная страница (страница с мероприятиями)
-@app.route('/')
 @app.route('/events')
+@check_is_confirmed
 def events():
   events = Event.query.order_by(Event.date).all()
   return render_template("events.html", events=events)
@@ -384,12 +472,52 @@ def events_update(id):
 
 
 # Страница мероприятия (порядок номеров мероприятия)
-@app.route('/events/<int:id>')
+@app.route('/events/<int:id>', methods=['GET', 'POST'])
 def event_detail(id):
   event = Event.query.get_or_404(id)
   list_event = EventTeam.query.filter_by(event_id=id).all()
-  #db.sessions.query(EventTeam).filter(EventTeam.event_id==id).all()
-  return render_template("event_detail.html", event=event, list_event=list_event)
+
+  if request.method == 'POST':
+    
+    check_number = request.form.getlist('check_number')
+
+    if check_number != []:
+      
+      last = int(check_number[-1])
+      
+      for i in range(1, 3):
+        
+        if last + i  <= len(list_event):
+
+          msg_title = "Скоро Ваш выход!"
+          sender = "organization.events.email@gmail.com"
+          email = list_event[last + i].user_team.email
+          msg_body = ""
+          match i:
+              case 1:
+                msg_body = "Будьте готовы, Ваш выход следующий!"
+              case 2:
+                msg_body = "Будьте готовы, Ваш выход через один номер!"
+              case 3:
+                msg_body = "Будьте готовы, Ваш выход через два номера!"
+
+          msg_body += f"\n\nВаш номер: {last + i} на мероприятии {event.event_name}"
+          msg_body += f"\nПодробнее: {url_for('event_detail', id=id, _external=True)}"
+
+          msg = Message(msg_title, sender=sender, recipients=email)
+
+          try:
+            mail.send(msg)
+            return "Email sent..."
+
+          except Exception as e:
+            print(e)
+            return f"the email was not sent {e}"
+          
+    
+    
+  else:
+    return render_template("event_detail.html", event=event, list_event=list_event)
 
 
 # Удаление номера из сценария мероприятия

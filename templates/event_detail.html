@@ -21,7 +21,11 @@
 
       <div class="alert alert-info">
 
-        <h3> {{ el.number }}: {{ el.team.team_name}} </h3>
+        <form method="POST" action="/" class="d-inline">
+          
+          <h3>{{ el.number }}: {{ el.team.team_name}} <input type="checkbox" value= "{{ el.number }}" name="check_number" class="form-check-input"> </h3>
+
+        </form>
 
         <a href="/events/{{ event.id }}/{{ el.team.id }}/delete_team" class="btn btn-warning"> Удалить </a>
 
