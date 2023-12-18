@@ -19,7 +19,7 @@ from wtforms.validators import DataRequired, Email, EqualTo, ValidationError
 app = Flask(__name__)
 
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///new_org_events.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///org_events.db'
 
 app.config['SECRET_KEY'] = '#$%^&*'
 app.config['SECURITY_PASSWORD_SALT'] = "cefcefe"
@@ -346,13 +346,12 @@ def check_is_confirmed(func):
   @wraps(func)
   def decorated_function(*args, **kwargs):
     
-    
-      if current_user.is_confirmed is False:
+    if current_user.is_confirmed is False:
         
-          flash("Пожалуйста подтвердите Вау электроннную почту!", "warning")
-          return redirect('/inactive')
+      flash("Пожалуйста подтвердите Вау электроннную почту!", "warning")
+      return redirect('/inactive')
         
-      return func(*args, **kwargs)
+    return func(*args, **kwargs)
   
   return decorated_function
 
@@ -403,7 +402,9 @@ def register_team():
 
 
 # Главная страница (страница с мероприятиями)
+#@check_is_confirmed
 @app.route('/events')
+#@login_required
 @check_is_confirmed
 def events():
   events = Event.query.order_by(Event.date).all()
@@ -425,10 +426,20 @@ def events_add():
     try:
       db.session.add(event)
       db.session.commit()
+
+      msg_title = "Добавленно новое мероприятие!"
+      sender = "organization.events.email@gmail.com"
+      list_user = UserTeam.query.all() + User.query.all()
+      list_email = [user.email for user in list_user]
+      msg_body = "Добавленно новое мероприятие: " + event_name + " в " + place + " на " + date.strftime("%d.%m.%y") + "\nПодробнее:" + "https://organizationofevents.yuliana2002.repl.co/events"
+      msg = Message(msg_title, sender=sender, recipients=list_email)
+      msg.body = msg_body
+      mail.send(msg)
+      
       return redirect('/events')
 
-    except:
-      return 'При добавлении мероприятия произошла ошибка'
+    except Exception as e:
+      return 'При добавлении мероприятия произошла ошибка ' + str(e)
 
   else:
     return render_template("events_add.html", form=form)
@@ -440,12 +451,23 @@ def events_delete(id):
   event = Event.query.get_or_404(id)
 
   try:
+
+    msg_title = "Мероприятие отменено!"
+    sender = "organization.events.email@gmail.com"
+    list_user = UserTeam.query.all() + User.query.all()
+    list_email = [user.email for user in list_user]
+    msg_body = "Было отменено мероприятие: " + event.event_name + " в " + event.place + " на " + event.date.strftime("%d.%m.%y") + "\nПодробнее:" + "https://organizationofevents.yuliana2002.repl.co/events"
+    msg = Message(msg_title, sender=sender, recipients=list_email)
+    msg.body = msg_body
+    mail.send(msg)
+
     db.session.delete(event)
     db.session.commit()
+
     return redirect('/events')
 
-  except:
-    return 'При удалении мероприятия произошла ошибка'
+  except Exception as e:
+    return 'При удалении мероприятия произошла ошибка ' + str(e)
 
 
 # Страница редактирования мероприятия
@@ -456,12 +478,27 @@ def events_update(id):
 
   if request.method == 'POST':
 
+    event_name = event.event_name
+    place = event.place
+    date = event.date
+    
     event.event_name = request.form['event_name']
     event.place = request.form['place']
     event.date = form.date.data
 
     try:
+
+      msg_title = "Мероприятие изменилось!"
+      sender = "organization.events.email@gmail.com"
+      list_user = UserTeam.query.all() + User.query.all()
+      list_email = [user.email for user in list_user]
+      msg_body = "Мероприятие: " + event_name + " в " + place + " на " + date.strftime("%d.%m.%y") + "было измененно следующим образом: " + event.event_name + " в " + event.place + " на " + event.date.strftime("%d.%m.%y") + "\nПодробнее:" + "https://organizationofevents.yuliana2002.repl.co/events"
+      msg = Message(msg_title, sender=sender, recipients=list_email)
+      msg.body = msg_body
+      mail.send(msg)
+
       db.session.commit()
+      
       return redirect('/events')
 
     except:
@@ -475,7 +512,7 @@ def events_update(id):
 @app.route('/events/<int:id>', methods=['GET', 'POST'])
 def event_detail(id):
   event = Event.query.get_or_404(id)
-  list_event = EventTeam.query.filter_by(event_id=id).all()
+  list_event = EventTeam.query.filter_by(event_id=id).order_by(EventTeam.number).all()
 
   if request.method == 'POST':
     
@@ -505,16 +542,9 @@ def event_detail(id):
           msg_body += f"\nПодробнее: {url_for('event_detail', id=id, _external=True)}"
 
           msg = Message(msg_title, sender=sender, recipients=email)
-
-          try:
-            mail.send(msg)
-            return "Email sent..."
-
-          except Exception as e:
-            print(e)
-            return f"the email was not sent {e}"
+          mail.send(msg)
           
-    
+    return redirect('/events/' + str(id))
     
   else:
     return render_template("event_detail.html", event=event, list_event=list_event)
@@ -523,6 +553,7 @@ def event_detail(id):
 # Удаление номера из сценария мероприятия
 @app.route('/events/<int:event_id>/<int:team_id>/delete_team')
 def events_delete_team(event_id, team_id):
+  event = Event.query.get_or_404(event_id)
   team = Team.query.get_or_404(team_id)
 
   try:
@@ -532,20 +563,31 @@ def events_delete_team(event_id, team_id):
     for el in list_team:
       if el.number > number_team:
         el.number -= 1
-    
-    db.session.delete(team)
-    db.session.delete(EventTeam.query.filter_by(event_id=event_id, team_id=team_id))
+
+    msg_title = "Удаление одного из номеров!"
+    sender = "organization.events.email@gmail.com"
+    list_user = UserTeam.query.all() + User.query.all()
+    list_email = [user.email for user in list_user]
+    msg_body = "Из программы мероприятия " + event.event_name + " в " + event.place + " на " + event.date.strftime("%d.%m.%y") + " был удален номер коллектива: " + team.team_name + " из-за чего поменялся порядок выступления" + "\nПодробнее:" + "https://organizationofevents.yuliana2002.repl.co/events"
+    msg = Message(msg_title, sender=sender, recipients=list_email)
+    msg.body = msg_body
+    mail.send(msg)
+
+    delete_number = EventTeam.query.filter_by(event_id=event_id, team_id=team_id).first()
+    db.session.delete(delete_number)
     db.session.commit()
     
     return redirect('/events/' + str(event_id))
 
-  except:
-    return 'При удалении мероприятия произошла ошибка'
+  except Exception as e:
+    return 'При удалении мероприятия произошла ошибка ' + str(e)
 
 
 # Добавление номера в сценарий мероприятия
 @app.route('/events/<int:event_id>/add_team', methods=['GET', 'POST'])
 def events_add_team(event_id):
+
+  event = Event.query.get_or_404(event_id)
 
   if request.method == 'POST':
 
@@ -562,6 +604,16 @@ def events_add_team(event_id):
     event_team = EventTeam(event_id=event_id, team_id=team.id, number=number)
 
     try:
+
+      msg_title = "Добавление номера!"
+      sender = "organization.events.email@gmail.com"
+      list_user = UserTeam.query.all() + User.query.all()
+      list_email = [user.email for user in list_user]
+      msg_body = "В программу мероприятия " + event.event_name + " в " + event.place + " на " + event.date.strftime("%d.%m.%y") + " был добавлен номер коллектива: " + team_name + " из-за чего поменялся порядок выступления" + "\nПодробнее:" + "https://organizationofevents.yuliana2002.repl.co/events"
+      msg = Message(msg_title, sender=sender, recipients=list_email)
+      msg.body = msg_body
+      mail.send(msg)
+      
       db.session.add(event_team)
       db.session.commit()
       return redirect('/events/' + str(event_id))
@@ -606,8 +658,63 @@ def teams_add():
 @app.route('/teams/<int:id>')
 def team_detail(id):
   team = Team.query.get_or_404(id)
-  list_user = User.query.filter_by(team_id=id).all()
+  list_user = UserTeam.query.filter_by(team_id=id).all()
   return render_template("team_detail.html", team=team, list_user=list_user)
+
+
+# # Страница добавления участника в коллектив
+# @app.route('/teams/<int:id>/add', methods=['GET', 'POST'])
+# def team_add_user(id):
+
+#   users = UserTeam.query.all()
+  
+#   if request.method == 'POST':
+
+#     user_name = request.form.get('user')
+#     user = UserTeam.query.filter_by(user_name=user_name).first()
+#     user.team_id = id
+
+#     try:
+#       #db.session.add(team)
+#       db.session.commit()
+#       return redirect('/teams')
+
+#     except:
+#       return 'При добавлении коллектива произошла ошибка'
+
+#   else:
+#     return render_template("teams_add_user.html", users=users)
+
+
+# Изменение порядка выступления
+@app.route('/events/<int:event_id>/<int:team_id>/update_team', methods=['GET', 'POST'])
+def events_update_team(event_id, team_id):
+
+  event = Event.query.get_or_404(event_id)
+  team = EventTeam.query.get_or_404(team_id)
+
+  if request.method == 'POST':
+
+    number = int(request.form['number'])
+    past_number = team.number
+    past_team = EventTeam.query.filter_by(number=number).first()
+
+    team.number = number
+    past_team.number = past_number
+
+    try:
+      
+      db.session.commit()
+
+      return redirect('/events/' + str(event_id))
+
+    except:
+      return 'При удалении мероприятия произошла ошибка'
+      
+  else:
+    return render_template("event_update_team.html", team=team)
+
+
 
 
 if __name__ == '__main__':

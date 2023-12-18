@@ -4,16 +4,16 @@ class Config(object):
   # подробную отладочную информацию. Если выключен -
   # - 500 ошибку без какой либо дополнительной информации.
   DEBUG = False
-  FLASK_APP="src"
-  
+  FLASK_APP = "app"
+
   # Включение защиты против "Cross-site Request Forgery (CSRF)"
   CSRF_ENABLED = True
-  
+
   # Случайный ключ, которые будет исползоваться для подписи
   # данных, например cookies.
   SECRET_KEY = 'RANDOM_SECRET_KEY'
   SECURITY_PASSWORD_SALT = "cefcefe"
-      
+
   # URI используемая для подключения к базе данных
   # SQLALCHEMY_DATABASE_URI = os.environ['DATABASE_URL']
   SQLALCHEMY_DATABASE_URI = 'sqlite:///new_org_events.db'
@@ -28,9 +28,9 @@ class Config(object):
   MAIL_DEFAULT_SENDER = "organization.events.email@gmail.com"
 
 
-
 class ProductionConfig(Config):
   DEBUG = False
+
 
 class DevelopmentConfig(Config):
   DEVELOPMENT = True

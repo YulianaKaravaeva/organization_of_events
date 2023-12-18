@@ -13,20 +13,20 @@
 
   <a href="/events/{{ event.id }}/add_team" class="btn btn-warning"> Добавить </a>
 
-  <a href="/events/{{ event.id }}/update_team" class="btn btn-warning"> Изменить порядок </a>
-
   {% if list_event != [] %}
 
     {% for el in list_event %}
 
+      
       <div class="alert alert-info">
 
         <form method="POST" action="/" class="d-inline">
-          
+           
           <h3>{{ el.number }}: {{ el.team.team_name}} <input type="checkbox" value= "{{ el.number }}" name="check_number" class="form-check-input"> </h3>
 
         </form>
 
+        <a href="/events/{{ event.id }}/{{ el.team.id }}/update_team" class="btn btn-warning"> Изменить порядок выхода </a>
         <a href="/events/{{ event.id }}/{{ el.team.id }}/delete_team" class="btn btn-warning"> Удалить </a>
 
       </div>
@@ -38,6 +38,8 @@
     <p> Номера еще не добавлены </p>
 
   {% endif %}
+
+  <a href="/events/{{ event.id }}" class="btn btn-warning"> Сохранить отметки </a>
 
 </div>
 {% endblock %}

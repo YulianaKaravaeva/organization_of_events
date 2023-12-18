@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block title %}
+
+  Изменение порядка выстпуления 
+
+{% endblock %}
+
+{% block body %}
+<div class="container mt-5">
+  <h1> Изменение порядка выстпуления коллектива {{ team.team_name }} </h1>
+  <form method="post">
+
+    {{ team.team_name }}
+    <input type="number" name="number" id="number" class="form-control" value={{ team.team_name }} placeholder="Введите под каким номер будет выступать команда"><br>
+
+    <p> При изменение номера, данный коллектив поменяется местами с коллективом под выбранным номером </p>
+
+    <input type="submit" class="btn btn-success" value="Изменить">
+
+  </form>
+</div>
+{% endblock %}

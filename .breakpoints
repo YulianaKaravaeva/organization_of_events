@@ -1,3 +1,12 @@
 {
-  "files": {}
+  "files": {
+    ".replit": [
+      {
+        "id": "90dfc099-13a4-4bfb-adaa-0c736b12b3e4",
+        "line": 3,
+        "version": 18,
+        "index": 43
+      }
+    ]
+  }
 }

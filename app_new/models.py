@@ -1,11 +1,16 @@
+from flask_admin.contrib.sqla import ModelView
 from flask_login import UserMixin
-from scr import app
 
-from app import db
+from app import admin, db, login_manager
 
 # Код моделей базы данных
 
-
+ 
+# Функция загрузчика пользователя
+@login_manager.user_loader
+def load_user(user_id):
+  return User.query.get(int(user_id))
+  
 #Таблица отношения многие-ко-многим для мероприятий и коллективов
 class EventTeam(db.Model):
   id = db.Column(db.Integer, primary_key=True)
@@ -75,3 +80,10 @@ class UserTeam(UserMixin, db.Model):
 
   def __repr__(self):
     return '<UserTeam %r>' % self.user_name
+
+
+admin.add_view(ModelView(User, db.session))
+admin.add_view(ModelView(UserTeam, db.session))
+admin.add_view(ModelView(EventTeam, db.session))
+admin.add_view(ModelView(Event, db.session))
+admin.add_view(ModelView(Team, db.session))

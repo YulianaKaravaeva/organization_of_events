@@ -1,5 +1,4 @@
 from flask_mail import Message
-from src import app, mail
 
 
 # Подготовка письма с подтверждением к отправке

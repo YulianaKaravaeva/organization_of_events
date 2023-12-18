@@ -1,22 +1,32 @@
-# # Этот файл сообщает Python, что папка app — пакет Python
-# import os
-
-# from flask import Flask
-# from flask_admin import Admin
-# from flask_login import LoginManager
-# from flask_mail import Mail
-# from flask_sqlalchemy import SQLAlchemy
-
-# app = Flask(__name__)
-
-# # Настройка приложения
-# app.config.from_object(os.environ.get('FLASK_ENV') or 'config.DevelopementConfig')
+# Этот файл сообщает Python, что папка app — пакет Python
+from flask import Flask
 
 
-# # Инициализация расширений
-# login_manager = LoginManager(app)
-# db = SQLAlchemy(app)
-# admin = Admin(app)
-# mail = Mail(app)
+from .extension import db, login_manager, admin, mail
 
-# db.create_all()
+
+# Фабрика приложения
+def create_app():
+  app = Flask(__name__)
+  app.config.from_object("config.DevelopmentConfig")
+
+  
+  
+  # with app.test_request_context():
+  #     db.create_all()
+  admin.init_app(app)
+  mail.init_app(app)
+  login_manager.init_app(app)
+  db.init_app(app)
+  with app.app_context():
+      db.create_all()
+
+  import app.event.view as events
+  import app.login_registr.view as login_registr
+  import app.team.view as teams
+
+  app.register_blueprint(events.module)
+  app.register_blueprint(login_registr.module)
+  app.register_blueprint(teams.module)
+  
+  return app

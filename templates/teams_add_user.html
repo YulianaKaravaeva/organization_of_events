@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}
+
+  Добавление участников коллектива
+
+{% endblock %}
+
+{% block body %}
+<div class="container mt-5">
+  <h1> Добавление творческого коллекива </h1>
+  <form method="post">
+
+    <p>Выберите файл:</p>
+    <p><select name = "user" type="search" list="character">
+      <datalist id="user">
+        {% for user in users %}
+        <option value="{{ user.user_name }}">{{ user.user_name }}</option>
+        {% endfor %}
+      </datalist>
+    </select>
+    </p>
+    
+    <!-- <span class="input-group-addon">Выберите нового участника</span>
+    
+    <select name="user" class="selectpicker form-control">
+      {% for user in users %}
+      <option value="{{ user }}">{{ user.user_name }}</option>
+      {% endfor %}
+    </select> -->
+
+    <input type="submit" class="btn btn-success" value="Добавить">
+
+  </form>
+</div>
+{% endblock %}
