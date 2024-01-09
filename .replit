@@ -1,5 +1,5 @@
 language = "python3"
-run = "python app.py"
+run = "python manage.py"
 modules = ["python-3.10:v25-20230920-d4ad2e4"]
 entrypoint = "main.py"
 hidden = [".pythonlibs"]

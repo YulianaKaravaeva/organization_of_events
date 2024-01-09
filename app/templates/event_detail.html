@@ -17,12 +17,19 @@
 
     {% for el in list_event %}
 
-      
+      <div class="form-group">
+        <label for="IsValid" class="control-label col-md-2">IsValid</label>       
+      <div class="col-md-2">
+        <input type="checkbox" class="form-check-input" id="check_number" name="check_number" {% if el.check_number==1 %}checked{% else %}{% endif %}>
+      </div>
+      </div>
+
+
       <div class="alert alert-info">
 
         <form method="POST" action="/" class="d-inline">
            
-          <h3>{{ el.number }}: {{ el.team.team_name}} <input type="checkbox" value= "{{ el.number }}" name="check_number" class="form-check-input"> </h3>
+          <h3>{{ el.number }}: {{ el.team.team_name}} <input type="checkbox"  name="check_number" class="form-check-input" {% if el.check_number==1 %}checked{% else %}{% endif %}> </h3>
 
         </form>
 
@@ -39,7 +46,7 @@
 
   {% endif %}
 
-  <a href="/events/{{ event.id }}" class="btn btn-warning"> Сохранить отметки </a>
+  <input type="submit" class="btn btn-success" value="Сохранить отметки">
 
 </div>
 {% endblock %}
